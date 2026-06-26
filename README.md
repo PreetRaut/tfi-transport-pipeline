@@ -94,27 +94,27 @@ An end-to-end **real-time cloud analytics pipeline** for Irish public transport,
 ```
 tfi-transport-pipeline/
 ├── ingestion/
-│   ├── 01_ingest_gtfs_static.py      # Download & parse NTA GTFS Static ZIP
-│   └── 02_ingest_gtfs_realtime.py    # Poll NTA GTFS-R API, flatten to Parquet
+│   ├── 01_ingest_gtfs_static.py      
+│   └── 02_ingest_gtfs_realtime.py    
 ├── sql/
 │   ├── schema/
-│   │   ├── 01_bronze_schema.sql      # Raw landing tables
+│   │   ├── 01_bronze_schema.sql      
 │   │   ├── 02_silver_schema.sql      # Cleaned star schema (dims + facts)
-│   │   └── 03_gold_schema.sql        # Aggregated reporting tables
+│   │   └── 03_gold_schema.sql        
 │   ├── transforms/
 │   │   ├── 01_bronze_to_silver.sql   # ELT: parse, enrich, type-cast
-│   │   └── 02_silver_to_gold.sql     # Aggregate KPIs for Tableau
+│   │   └── 02_silver_to_gold.sql     
 │   └── views/
-│       └── gold_views.sql            # 6 analytical views (Tableau ready)
+│       └── gold_views.sql            #  analytical views (Tableau ready)
 ├── adf_pipeline/
-│   └── pipeline_arm_template.json    # ADF ARM template (2 pipelines + 2 triggers)
+│   └── pipeline_arm_template.json    
 ├── tableau/
-│   ├── TABLEAU_SETUP.md              # Connection guide + calculated fields
-│   └── screenshots/                  # Dashboard page exports (add after build)
+│   ├── TABLEAU_SETUP.md              
+│   └── screenshots/                  
 ├── tests/
-│   └── test_ingestion.py             # pytest unit tests (12 tests)
-├── data/sample/                      # Auto-generated CSV samples (gitignored)
-├── .env.example                      # Credentials template
+│   └── test_ingestion.py             
+├── data/sample/                      
+├── .env.example                      
 ├── .gitignore
 ├── requirements.txt
 └── README.md
@@ -138,12 +138,9 @@ tfi-transport-pipeline/
 | BI & reporting | Tableau Public, calculated fields, map visuals, Extract mode |
 | DevOps | Git, ARM templates, .env credential management |
 
----
 
-## Author
 
-**Preet** — MSc Computer Science (Data Science & AI), University College Dublin  
-[LinkedIn](https://linkedin.com/in/YOUR_PROFILE) · [GitHub](https://github.com/YOUR_USERNAME) · [Tableau Public](https://public.tableau.com/YOUR_PROFILE)
+
 
 ## Live Dashboard
 
