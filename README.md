@@ -120,88 +120,9 @@ tfi-transport-pipeline/
 └── README.md
 ```
 
----
 
-## Quick Start
 
-### Prerequisites
-- Mac + VS Code
-- Python 3.11+
-- Azure free account → [azure.microsoft.com/free](https://azure.microsoft.com/free)
-- NTA API key → [developer.nationaltransport.ie](https://developer.nationaltransport.ie)
 
-### 1 — Clone & install
-```bash
-git clone https://github.com/YOUR_USERNAME/tfi-transport-pipeline.git
-cd tfi-transport-pipeline
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-```
-
-### 2 — Configure credentials
-```bash
-cp .env.example .env
-# Edit .env with your NTA API key + Azure credentials
-```
-
-### 3 — Run tests
-```bash
-pytest tests/ -v
-# 12 tests should pass without any Azure credentials
-```
-
-### 4 — Ingest GTFS Static (no key needed)
-```bash
-python ingestion/01_ingest_gtfs_static.py --local-only
-# Downloads ~25MB ZIP, parses 7 feed files, saves samples to data/sample/
-```
-
-### 5 — Ingest one Realtime snapshot
-```bash
-python ingestion/02_ingest_gtfs_realtime.py --runs 1
-# Fetches one TripUpdates + VehiclePositions snapshot
-```
-
-### 6 — Run SQL scripts (VS Code mssql extension)
-```
-sql/schema/01_bronze_schema.sql
-sql/schema/02_silver_schema.sql
-sql/schema/03_gold_schema.sql
-sql/transforms/01_bronze_to_silver.sql
-sql/transforms/02_silver_to_gold.sql
-sql/views/gold_views.sql
-```
-
-### 7 — Import ADF pipeline
-See `adf_pipeline/` — deploy ARM template to ADF Studio, activate both triggers.
-
-### 8 — Build Tableau dashboard
-See `tableau/TABLEAU_SETUP.md`
-
----
-
-## Azure Setup (Free Tier — €0)
-
-| Resource | SKU | Cost |
-|---------|-----|------|
-| ADLS Gen2 | LRS, <5 GB | Free |
-| Azure SQL Database | Free tier (32 GB) | €0 |
-| Azure Data Factory | 5 free activities/month | €0 |
-| **NTA API** | Free (registered key) | **€0** |
-| **Total** | | **€0** |
-
----
-
-## Key Analytical Questions Answered
-
-- Which Dublin Bus routes are most delayed during AM peak?
-- How does on-time performance vary by hour of day and day of week?
-- Which bus stops are chronic delay hotspots? (map view)
-- How do Dublin Bus, Bus Éireann, and Go-Ahead compare in reliability?
-- What is the 7-day rolling trend in network punctuality?
-- How does Rail performance compare to Bus?
-
----
 
 ## Skills Demonstrated
 
