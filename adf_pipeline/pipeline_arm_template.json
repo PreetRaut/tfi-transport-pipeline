@@ -1,0 +1,273 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "factoryName":        { "type": "string", "defaultValue": "adf-tfi-transport" },
+    "storageAccountName": { "type": "string", "defaultValue": "sadlstfitransport" },
+    "sqlServerName":      { "type": "string", "defaultValue": "sql-tfi-transport" },
+    "sqlDatabaseName":    { "type": "string", "defaultValue": "tfi-transport-db" }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.DataFactory/factories",
+      "apiVersion": "2018-06-01",
+      "name": "[parameters('factoryName')]",
+      "location": "[resourceGroup().location]",
+      "identity": { "type": "SystemAssigned" }
+    },
+
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/ls_adls_gen2')]",
+      "dependsOn": ["[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"],
+      "properties": {
+        "type": "AzureBlobFS",
+        "typeProperties": {
+          "url": "[concat('https://', parameters('storageAccountName'), '.dfs.core.windows.net')]",
+          "accountKey": {
+            "type": "SecureString",
+            "value": "**SET_IN_ADF_STUDIO**"
+          }
+        }
+      }
+    },
+
+    {
+      "type": "Microsoft.DataFactory/factories/linkedServices",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/ls_azure_sql')]",
+      "dependsOn": ["[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"],
+      "properties": {
+        "type": "AzureSqlDatabase",
+        "typeProperties": {
+          "connectionString": "[concat('Server=tcp:', parameters('sqlServerName'), '.database.windows.net,1433;Initial Catalog=', parameters('sqlDatabaseName'), ';Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;Authentication=Active Directory Managed Identity')]"
+        }
+      }
+    },
+
+    {
+      "type": "Microsoft.DataFactory/factories/datasets",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/ds_parquet_gtfs_static')]",
+      "dependsOn": ["[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"],
+      "properties": {
+        "linkedServiceName": { "referenceName": "ls_adls_gen2", "type": "LinkedServiceReference" },
+        "type": "Parquet",
+        "typeProperties": {
+          "location": {
+            "type": "AzureBlobFSLocation",
+            "fileSystem": "bronze",
+            "folderPath": {
+              "value": "gtfs_static/@{dataset().feed_name}",
+              "type": "Expression"
+            }
+          },
+          "compressionCodec": "snappy"
+        },
+        "parameters": { "feed_name": { "type": "string" } }
+      }
+    },
+
+    {
+      "type": "Microsoft.DataFactory/factories/datasets",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/ds_parquet_rt_trip_updates')]",
+      "dependsOn": ["[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"],
+      "properties": {
+        "linkedServiceName": { "referenceName": "ls_adls_gen2", "type": "LinkedServiceReference" },
+        "type": "Parquet",
+        "typeProperties": {
+          "location": {
+            "type": "AzureBlobFSLocation",
+            "fileSystem": "bronze",
+            "folderPath": "gtfs_realtime/trip_updates"
+          },
+          "compressionCodec": "snappy"
+        }
+      }
+    },
+
+    {
+      "type": "Microsoft.DataFactory/factories/datasets",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/ds_parquet_rt_vehicles')]",
+      "dependsOn": ["[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"],
+      "properties": {
+        "linkedServiceName": { "referenceName": "ls_adls_gen2", "type": "LinkedServiceReference" },
+        "type": "Parquet",
+        "typeProperties": {
+          "location": {
+            "type": "AzureBlobFSLocation",
+            "fileSystem": "bronze",
+            "folderPath": "gtfs_realtime/vehicle_positions"
+          },
+          "compressionCodec": "snappy"
+        }
+      }
+    },
+
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/pl_01_ingest_gtfs_static')]",
+      "dependsOn": ["[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"],
+      "properties": {
+        "description": "Weekly: Download NTA GTFS Static ZIP → ADLS bronze → Azure SQL bronze",
+        "activities": [
+          {
+            "name": "CopyAgency",       "type": "Copy",
+            "typeProperties": {
+              "source": { "type": "ParquetSource" },
+              "sink": { "type": "AzureSqlSink", "preCopyScript": "TRUNCATE TABLE bronze.gtfs_agency", "writeBehavior": "insert" }
+            },
+            "inputs":  [{ "referenceName": "ds_parquet_gtfs_static", "type": "DatasetReference", "parameters": { "feed_name": "agency" } }],
+            "outputs": [{ "referenceName": "ds_sql_bronze_agency", "type": "DatasetReference" }]
+          },
+          {
+            "name": "CopyRoutes",      "type": "Copy",
+            "dependsOn": [{ "activity": "CopyAgency", "dependencyConditions": ["Succeeded"] }],
+            "typeProperties": {
+              "source": { "type": "ParquetSource" },
+              "sink": { "type": "AzureSqlSink", "preCopyScript": "TRUNCATE TABLE bronze.gtfs_routes", "writeBehavior": "insert" }
+            },
+            "inputs":  [{ "referenceName": "ds_parquet_gtfs_static", "type": "DatasetReference", "parameters": { "feed_name": "routes" } }],
+            "outputs": [{ "referenceName": "ds_sql_bronze_routes", "type": "DatasetReference" }]
+          },
+          {
+            "name": "CopyStops",       "type": "Copy",
+            "dependsOn": [{ "activity": "CopyRoutes", "dependencyConditions": ["Succeeded"] }],
+            "typeProperties": {
+              "source": { "type": "ParquetSource" },
+              "sink": { "type": "AzureSqlSink", "preCopyScript": "TRUNCATE TABLE bronze.gtfs_stops", "writeBehavior": "insert" }
+            },
+            "inputs":  [{ "referenceName": "ds_parquet_gtfs_static", "type": "DatasetReference", "parameters": { "feed_name": "stops" } }],
+            "outputs": [{ "referenceName": "ds_sql_bronze_stops", "type": "DatasetReference" }]
+          },
+          {
+            "name": "CopyTrips",       "type": "Copy",
+            "dependsOn": [{ "activity": "CopyStops", "dependencyConditions": ["Succeeded"] }],
+            "typeProperties": {
+              "source": { "type": "ParquetSource" },
+              "sink": { "type": "AzureSqlSink", "preCopyScript": "TRUNCATE TABLE bronze.gtfs_trips", "writeBehavior": "insert" }
+            },
+            "inputs":  [{ "referenceName": "ds_parquet_gtfs_static", "type": "DatasetReference", "parameters": { "feed_name": "trips" } }],
+            "outputs": [{ "referenceName": "ds_sql_bronze_trips", "type": "DatasetReference" }]
+          },
+          {
+            "name": "CopyStopTimes",   "type": "Copy",
+            "dependsOn": [{ "activity": "CopyTrips", "dependencyConditions": ["Succeeded"] }],
+            "typeProperties": {
+              "source": { "type": "ParquetSource" },
+              "sink": { "type": "AzureSqlSink", "preCopyScript": "TRUNCATE TABLE bronze.gtfs_stop_times", "writeBehavior": "insert" }
+            },
+            "inputs":  [{ "referenceName": "ds_parquet_gtfs_static", "type": "DatasetReference", "parameters": { "feed_name": "stop_times" } }],
+            "outputs": [{ "referenceName": "ds_sql_bronze_stop_times", "type": "DatasetReference" }]
+          },
+          {
+            "name": "CopyCalendar",    "type": "Copy",
+            "dependsOn": [{ "activity": "CopyStopTimes", "dependencyConditions": ["Succeeded"] }],
+            "typeProperties": {
+              "source": { "type": "ParquetSource" },
+              "sink": { "type": "AzureSqlSink", "preCopyScript": "TRUNCATE TABLE bronze.gtfs_calendar", "writeBehavior": "insert" }
+            },
+            "inputs":  [{ "referenceName": "ds_parquet_gtfs_static", "type": "DatasetReference", "parameters": { "feed_name": "calendar" } }],
+            "outputs": [{ "referenceName": "ds_sql_bronze_calendar", "type": "DatasetReference" }]
+          },
+          {
+            "name": "TransformBronzeToSilver_Static",
+            "type": "SqlServerStoredProcedure",
+            "dependsOn": [{ "activity": "CopyCalendar", "dependencyConditions": ["Succeeded"] }],
+            "typeProperties": { "storedProcedureName": "silver.usp_load_silver_static" },
+            "linkedServiceName": { "referenceName": "ls_azure_sql", "type": "LinkedServiceReference" }
+          }
+        ]
+      }
+    },
+
+    {
+      "type": "Microsoft.DataFactory/factories/pipelines",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/pl_02_ingest_realtime')]",
+      "dependsOn": ["[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"],
+      "properties": {
+        "description": "Every 5 min: Copy RT Parquet files from ADLS → Azure SQL bronze → Silver → Gold",
+        "activities": [
+          {
+            "name": "CopyTripUpdates", "type": "Copy",
+            "typeProperties": {
+              "source": { "type": "ParquetSource" },
+              "sink": { "type": "AzureSqlSink", "writeBehavior": "insert" }
+            },
+            "inputs":  [{ "referenceName": "ds_parquet_rt_trip_updates", "type": "DatasetReference" }],
+            "outputs": [{ "referenceName": "ds_sql_bronze_rt_trip_updates", "type": "DatasetReference" }]
+          },
+          {
+            "name": "CopyVehiclePositions", "type": "Copy",
+            "dependsOn": [{ "activity": "CopyTripUpdates", "dependencyConditions": ["Succeeded"] }],
+            "typeProperties": {
+              "source": { "type": "ParquetSource" },
+              "sink": { "type": "AzureSqlSink", "writeBehavior": "insert" }
+            },
+            "inputs":  [{ "referenceName": "ds_parquet_rt_vehicles", "type": "DatasetReference" }],
+            "outputs": [{ "referenceName": "ds_sql_bronze_rt_vehicles", "type": "DatasetReference" }]
+          },
+          {
+            "name": "TransformBronzeToSilver_RT",
+            "type": "SqlServerStoredProcedure",
+            "dependsOn": [{ "activity": "CopyVehiclePositions", "dependencyConditions": ["Succeeded"] }],
+            "typeProperties": { "storedProcedureName": "silver.usp_load_silver_realtime" },
+            "linkedServiceName": { "referenceName": "ls_azure_sql", "type": "LinkedServiceReference" }
+          },
+          {
+            "name": "TransformSilverToGold",
+            "type": "SqlServerStoredProcedure",
+            "dependsOn": [{ "activity": "TransformBronzeToSilver_RT", "dependencyConditions": ["Succeeded"] }],
+            "typeProperties": { "storedProcedureName": "gold.usp_load_gold" },
+            "linkedServiceName": { "referenceName": "ls_azure_sql", "type": "LinkedServiceReference" }
+          }
+        ]
+      }
+    },
+
+    {
+      "type": "Microsoft.DataFactory/factories/triggers",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/trigger_weekly_static')]",
+      "dependsOn": ["[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"],
+      "properties": {
+        "type": "ScheduleTrigger",
+        "typeProperties": {
+          "recurrence": {
+            "frequency": "Week",
+            "interval": 1,
+            "startTime": "2025-01-06T03:00:00Z",
+            "timeZone": "GMT Standard Time",
+            "schedule": { "weekDays": ["Monday"] }
+          }
+        },
+        "pipelines": [{ "pipelineReference": { "referenceName": "pl_01_ingest_gtfs_static", "type": "PipelineReference" } }]
+      }
+    },
+
+    {
+      "type": "Microsoft.DataFactory/factories/triggers",
+      "apiVersion": "2018-06-01",
+      "name": "[concat(parameters('factoryName'), '/trigger_every_5min_realtime')]",
+      "dependsOn": ["[resourceId('Microsoft.DataFactory/factories', parameters('factoryName'))]"],
+      "properties": {
+        "type": "ScheduleTrigger",
+        "typeProperties": {
+          "recurrence": {
+            "frequency": "Minute",
+            "interval": 5,
+            "startTime": "2025-01-06T06:00:00Z",
+            "endTime":   "2025-12-31T23:59:00Z",
+            "timeZone": "GMT Standard Time"
+          }
+        },
+        "pipelines": [{ "pipelineReference": { "referenceName": "pl_02_ingest_realtime", "type": "PipelineReference" } }]
+      }
+    }
+  ]
+}

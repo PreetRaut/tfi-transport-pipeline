@@ -1,0 +1,14 @@
+.env
+*.env
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.DS_Store
+.vscode/
+*.log
+data/sample/*.parquet
+data/sample/gtfs_static_latest.zip
+.pytest_cache/
+.coverage
+htmlcov/
