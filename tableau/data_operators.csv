@@ -1,0 +1,7 @@
+week_start_date,week_label,agency_name,operator_type,route_count,total_delay_obs,avg_delay_mins,pct_on_time,pct_severe_delay,reliability_score,reliability_band,_refreshed_at
+2026-06-26,2026-26,Bus Átha Cliath – Dublin Bus,Dublin Bus,114,0,0.0,0.0,0.0,0.0,Scheduled,2026-06-26 16:19:37.550
+2026-06-26,2026-26,Bus Éireann,Bus Éireann,200,0,0.0,0.0,0.0,0.0,Scheduled,2026-06-26 16:19:37.550
+2026-06-26,2026-26,Bus Éireann Waterford,Bus Éireann,5,0,0.0,0.0,0.0,0.0,Scheduled,2026-06-26 16:19:37.550
+2026-06-26,2026-26,Go-Ahead Ireland,Go-Ahead Ireland,64,0,0.0,0.0,0.0,0.0,Scheduled,2026-06-26 16:19:37.550
+2026-06-26,2026-26,Iarnród Éireann / Irish Rail,Irish Rail,19,0,0.0,0.0,0.0,0.0,Scheduled,2026-06-26 16:19:37.550
+2026-06-26,2026-26,LUAS,Luas,2,0,0.0,0.0,0.0,0.0,Scheduled,2026-06-26 16:19:37.550

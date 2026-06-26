@@ -223,3 +223,13 @@ See `tableau/TABLEAU_SETUP.md`
 
 **Preet** — MSc Computer Science (Data Science & AI), University College Dublin  
 [LinkedIn](https://linkedin.com/in/YOUR_PROFILE) · [GitHub](https://github.com/YOUR_USERNAME) · [Tableau Public](https://public.tableau.com/YOUR_PROFILE)
+
+## Live Dashboard
+
+🔗 **[View on Tableau Public](https://public.tableau.com/shared/77NG73Q6R)**
+
+Built from real NTA GTFS data:
+- 10,218 bus & rail stops mapped across Ireland
+- 1,218 live vehicle position snapshots
+- 404 routes across 7 operators
+- Azure SQL Bronze/Silver/Gold pipeline
